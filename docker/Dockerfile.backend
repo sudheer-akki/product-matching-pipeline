@@ -1,0 +1,11 @@
+FROM python:3.11.11
+
+WORKDIR /workspace
+
+COPY requirements_app.txt entry_point.sh ./
+
+RUN pip install --no-cache-dir -r requirements_app.txt
+
+RUN chmod +x entry_point.sh
+
+CMD ["bash", "entry_point.sh"]

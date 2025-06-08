@@ -1,0 +1,47 @@
+
+faiss:
+  dinov2:
+    path: "db/faiss/dino_index.faiss"
+    dimension: 768
+  bert: 
+    path: "db/faiss/bert_index.faiss"
+    dimension: 768
+
+mongo:
+  uri: "mongodb://admin:admin123@mongo:27017/"
+  db_name: "products"
+  collections:
+    product: "metadata"
+    logs: "logs"
+  seed_data_path: "db/mongo/metadata.json"
+
+
+models:
+  llava:
+    model_name: "llava-1.5-7b-hf"
+    save_path: "models_src/llava"
+    ckpt_path: "models_src/llava/ckpt"
+    engine_path: "models/llava/1"
+    dtype: "float16"
+
+  dinov2:
+    name: "facebook/dinov2-base"
+    path: "models_src/dino"
+    engine_path: "models/dino/1/dino_fp16.plan"
+    dtype: "float16"
+
+  bert:
+    name: "bert-base-uncased"
+    path: "models_src/bert"
+    engine_path: "models/bert/1/bert_fp16.plan"
+    dtype: "float16"
+
+dataset:
+  image_root: "dataset/deepfashion/images"
+  labels_root: "dataset/deepfashion/labels"
+  captions_file: "dataset/deepfashion/captions.json"
+
+api:
+  frontend_url: "http://localhost:7860"
+  backend_url: "http://localhost:6000"
+  triton_url: "triton:8000"

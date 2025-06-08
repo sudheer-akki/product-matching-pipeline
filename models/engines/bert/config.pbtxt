@@ -1,0 +1,27 @@
+name: "bert"
+backend: "tensorrt"
+max_batch_size: 1
+
+input [
+  {
+    name: "input_ids"
+    data_type: TYPE_INT64
+    dims: [ -1 ] # dynamic sequence length
+  },
+  {
+    name: "attention_mask"
+    data_type: TYPE_INT64 
+    dims: [ -1 ] # dynamic sequence length
+  }
+]
+output [
+  {
+    name: "pooled_output"
+    data_type: TYPE_FP32
+    dims: [ 768 ] # [B, 768]
+  }
+]
+
+instance_group [
+  { kind: KIND_GPU, count: 1 }
+]

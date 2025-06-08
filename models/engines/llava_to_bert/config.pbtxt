@@ -1,0 +1,59 @@
+name: "llava_to_bert"
+backend: "python"
+
+input [
+  {
+    name: "image"
+    data_type: TYPE_STRING
+    dims: [-1]  
+  },
+  {
+    name: "prompt"
+    data_type: TYPE_STRING
+    dims: [-1]
+  },
+  {
+    name: "max_tokens"
+    data_type: TYPE_INT32
+    dims: [-1]
+  },
+  {
+    name: "temperature"
+    data_type: TYPE_FP32
+    dims: [-1]
+  },
+  {
+    name: "top_k"
+    data_type: TYPE_INT32
+    dims: [-1]
+  },
+  {
+    name: "frequency_penalty"
+    data_type: TYPE_FP32
+    dims: [-1]
+  },
+  {
+    name: "seed"
+    data_type: TYPE_UINT64
+    dims: [-1]
+  }
+]
+
+output [
+  {
+    name: "pooled_output"
+    data_type: TYPE_FP32
+    dims: [ -1 ]
+  }, 
+    {
+    name: "text"
+    data_type: TYPE_STRING
+    dims: [ -1 ]
+  }
+]
+
+instance_group [
+  {
+    kind: KIND_GPU
+  }
+]

@@ -1,0 +1,76 @@
+version: "3.3"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.backend
+    image: app
+    container_name: app
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace
+    ports:
+      - "6000:6000"
+      - "7860:7860"
+    depends_on:
+      - mongo
+      - mongo-express
+    command: ["bash", "entry_point.sh"]
+
+  mongo:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.mongo
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: products
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongo
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: PassWord123
+
+  triton:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.triton
+    image: triton-server
+    container_name: triton
+    restart: unless-stopped
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8000:8000"  # HTTP
+      - "8001:8001"  # gRPC
+      - "8002:8002"  # Metrics
+    deploy:
+      resources:
+        reservations:
+           devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    stdin_open: true
+    tty: true
+    #command: ["/bin/bash"]
+    command: "tritonserver --model-repository=./models/engines"

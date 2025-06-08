@@ -1,0 +1,11 @@
+pycuda
+transformers
+pandas
+torch
+torchvision
+torchaudio
+tensorrt==10.7.0
+onnx
+#torch==2.7.0+cu126 --index-url https://download.pytorch.org/whl/cu126
+#torchvision==0.21.0+cu126 --index-url https://download.pytorch.org/whl/cu126
+#torchaudio==2.6.0+cu126 --index-url https://download.pytorch.org/whl/cu126

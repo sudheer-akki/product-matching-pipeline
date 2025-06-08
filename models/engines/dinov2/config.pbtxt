@@ -1,0 +1,26 @@
+name: "dinov2"
+backend: "tensorrt"
+max_batch_size: 8 # allow up to 8 images in a batch
+
+input [
+  {
+    name: "pixel_values"
+    data_type: TYPE_FP32
+    format: FORMAT_NCHW
+    dims: [3, 224, 224]
+  }
+]
+output [
+  {
+    name: "cls_embedding"
+    data_type: TYPE_FP32
+    dims: [768]  # DINOv2 output dimension [B, 768]
+  }
+]
+
+instance_group [
+  { 
+  kind: KIND_GPU, 
+  count: 1 
+  }
+]

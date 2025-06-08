@@ -1,0 +1,13 @@
+FROM mongo:7.0.2
+
+RUN echo "Starting Mongo build..."
+
+ENV MONGO_INITDB_ROOT_USERNAME=admin
+ENV MONGO_INITDB_ROOT_PASSWORD=admin123
+ENV MONGO_INITDB_DATABASE=products
+
+COPY ./db/mongo/metadata.json /tmp/metadata.json
+
+COPY ./db/mongo/importscript.sh /docker-entrypoint-initdb.d/
+
+ADD ./db/mongo/init-mongo.js /docker-entrypoint-initdb.d/

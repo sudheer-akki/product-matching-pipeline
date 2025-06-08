@@ -1,0 +1,27 @@
+
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+fastapi==0.115.12
+fvcore==0.1.5.post20221221
+motor==3.7.1
+numpy==2.2.6
+omegaconf==2.3.0
+Pillow==11.2.1
+pydantic==2.11.5
+pymongo==4.13.0
+Requests==2.32.3
+scipy==1.15.3
+setuptools==78.1.1
+submitit==1.5.3
+transformers #==4.34.1
+tritonclient==2.57.0
+xformers==0.0.30
+gradio #==5.32.0
+faiss-cpu==1.11.0
+gevent==25.5.1
+geventhttpclient==2.3.3
+torch==2.7.0 
+torchmetrics==0.10.3 
+torchvision==0.22.0
+cachetools
+grpcio-tools
