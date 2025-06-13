@@ -13,7 +13,7 @@ router = APIRouter()
 
 
 @router.post("/search/image")
-async def search_image(request: Request, image: UploadFile = File(...), top_k: int = 5):
+async def search_image(request: Request, image: UploadFile = File(...), top_k: int = 3):
     request_id = request.headers.get("x-request-id", "unknown")
     log_event("info", "Image search request received", {
         "filename": image.filename,
@@ -31,18 +31,11 @@ async def search_image(request: Request, image: UploadFile = File(...), top_k: i
         llava_bert_response = asyncio.create_task(llava_bert_pipeline(
             request = request,
             image_bytes = image_bytes,
-            prompt=  
-            "Describe the image with detailed clothing and accessory attributes, using the following format and wording:\n"
-            "The upper clothing has [sleeve length], [fabric] fabric and [pattern] patterns. "
-            "The neckline of it is [neckline]. The lower clothing is of [length] length. "
-            "The fabric is [fabric] and it has [pattern] patterns. "
-            "There is an accessory on [body part]. "
-            "Also state the gender at the beginning of the description, like 'This is a [male/female]'.\n"
-            "Use the same structure and wording as above, filling in the specific details from the image.",
-            max_tokens=60,
+            prompt = "Describe the Gender, clothing and accessories in the image",
+            max_tokens=128,
             temperature=0.2,
             top_k=1,
-            freq_penalty=0.0,
+            freq_penalty=0.3,
             seed=42
         ))
         try:

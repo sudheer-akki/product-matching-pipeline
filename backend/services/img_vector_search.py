@@ -6,7 +6,7 @@ from core import log_event
 from .triton_client import infer_dinov2
 
 
-async def search_similar_images(request: Request, image_bytes: bytes, top_k = 5):
+async def search_similar_images(request: Request, image_bytes: bytes, top_k = 3):
     #Loading DinoV2 Processor & Faiss Vector DB
     processor = request.app.state.container.processors["dinov2"]
     faiss_index = request.app.state.container.faiss["dinov2"]

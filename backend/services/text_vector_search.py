@@ -70,7 +70,7 @@ def search_text_vector(request: Request, text_embeddings: np.ndarray,  top_k: in
         list[int]: Top-k document IDs.
     """
     faiss_index = request.app.state.container.faiss["bert"]
-    ids, distances = faiss_index._search_index(embedding=text_embeddings,top_k=top_k, name = "bert")
+    ids, distances = faiss_index._search_index(embedding=text_embeddings,top_k=top_k,name = "bert")
     log_event("info", "FAISS text search complete", {
         "ids": ids,
         "distances": distances

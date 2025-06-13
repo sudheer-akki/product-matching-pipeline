@@ -20,14 +20,15 @@ async def search_text(request: Request, query: str = Form(...)):
         numeric_ids = await asyncio.wait_for(bert_search, timeout=5)
         log_event("info", "BERT + FAISS search complete", {
             "result_count": len(numeric_ids),
+            "result": numeric_ids,
             "request_id": request_id
         })
 
         if not numeric_ids:
             return {"query": query, "results": []}
         
-        #dummy_numeric_ids  = [30533, 11752, 13372]
-
+        if numeric_ids and isinstance(numeric_ids[0], list):
+            numeric_ids = numeric_ids[0][0]
         # Fetch metadata from MongoDB using Numeric IDs
         results = fetch_metadata(request, numeric_ids = numeric_ids)
         log_event("info", "Metadata fetched for text search", {

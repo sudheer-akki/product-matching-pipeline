@@ -66,7 +66,7 @@ class FaissIndexHandler:
             print(f"[ERROR] Failed to initialize FAISS index: {e}")
             raise
 
-    def _search_index(self, name: str, embedding: np.ndarray, top_k: int = 5  ) -> tuple[np.ndarray, np.ndarray]:
+    def _search_index(self, name: str, embedding: np.ndarray, top_k: int = 3 ) -> tuple[np.ndarray, np.ndarray]:
         """
         Searches the index for the top_k closest vectors to the given embedding 
         using saved Cache if available
