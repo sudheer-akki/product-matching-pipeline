@@ -1,6 +1,7 @@
 from fastapi import Request
 from core import log_event
 import numpy as np
+from .triton_client import infer_llava_bert
 
 async def llava_bert_pipeline(
     request: Request,
@@ -38,9 +39,8 @@ async def llava_bert_pipeline(
         }
 
         # Sending Payload to Llava -> Bert on Triton Server
-        caption, embedding = await request.app.state.batcher_llava_bert.submit(input_payload)
-        log_event("info", "Llava-Bert Embeddings pipeline completed", 
-                  {"Embeddings": embedding.shape, "caption": caption})
+        caption, embedding = infer_llava_bert(input_payload) #await request.app.state.batcher_llava_bert.submit(input_payload)
+        log_event("info", "Llava-Bert Embeddings pipeline completed")
         return caption, embedding
 
     except Exception as e:

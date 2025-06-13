@@ -1,139 +1,177 @@
-import triton_python_backend_utils as pb_utils
+import os
+import io
+import yaml
 import numpy as np
+from PIL import Image, UnidentifiedImageError
+import triton_python_backend_utils as pb_utils
+
+# LLaVA pipeline imports
+from tensorrt_llm import logger
+from tensorrt_llm.runtime import MultimodalModelRunner
+
+# HugginFace BERT
 from transformers import BertTokenizer
+from torch.utils.dlpack import from_dlpack
 
 class TritonPythonModel:
     def initialize(self, args):
-        self.llava_model = "llava"
-        self.bert_model = "bert_trt"
-        self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        # Load configuration from YAML
+        config_path = "/workspace/configs/app_config.yaml"
+        config = self._load_config(config_path)
+        llava_config = config['models']['llava']
+        # --- LLaVA engine setup ---
+        self.llava_args = type('', (), {})()
+        self.llava_args.max_new_tokens = 60
+        self.llava_args.hf_model_dir = llava_config['hf_model_dir']
+        self.llava_args.visual_engine_dir = llava_config['visual_engine_dir']
+        self.llava_args.llm_engine_dir = llava_config['llm_engine_dir']
+        self.llava_args.visual_engine_name = llava_config.get('visual_engine_name', "model.engine")
+        self.llava_args.llm_engine_name = llava_config.get('llm_engine_name', "rank0.engine")
+        self.llava_args.log_level = llava_config.get('log_level', "info")
+        self.llava_args.input_text = ""
+        self.llava_args.batch_size = 1
+        self.llava_args.num_beams = 1
+        self.llava_args.top_k = 1
+        self.llava_args.top_p = 0.0
+        self.llava_args.temperature = 1.0
+        self.llava_args.repetition_penalty = 1.0
+        self.llava_args.run_profiling = False
+        self.llava_args.profiling_iterations = 1
+        self.llava_args.check_accuracy = False
+        self.llava_args.image_path = None
+        self.llava_args.path_sep = ","
+        self.llava_args.video_path = None
+        self.llava_args.video_num_frames = None
+        self.llava_args.enable_context_fmha_fp32_acc = False
+        self.llava_args.enable_chunked_context = False
+        self.llava_args.use_py_session = False
+        self.llava_args.kv_cache_free_gpu_memory_fraction = 0.9
+        self.llava_args.cross_kv_cache_fraction = 0.5
+        self.llava_args.multi_block_mode = True
+
+        os.environ["TOKENIZERS_PARALLELISM"] = "true"
+        logger.set_level(self.llava_args.log_level)
+        self.llava_model = MultimodalModelRunner(self.llava_args)
+        print("LLaVA runner loaded", flush=True)
+
+        # --- BERT embedding setup (change model name if needed) ---
+        self.bert_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        self.bert_model_name = "bert"
+        print("BERT Tokenizer loaded", flush=True)
+
+    @staticmethod
+    def _load_config(config_path):
+        with open(config_path, "r") as f:
+            return yaml.safe_load(f)
+
+    @staticmethod
+    def decode_image_bytes(image_bytes):
+        # Defensive: sometimes you get np.ndarray of shape (1,) and dtype object, so fix that.
+        if isinstance(image_bytes, np.ndarray):
+            image_bytes = image_bytes.item() if image_bytes.size == 1 else image_bytes[0]
+        if not isinstance(image_bytes, (bytes, bytearray)):
+            raise ValueError(f"Expected bytes, got {type(image_bytes)}")
+        try:
+            return Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        except UnidentifiedImageError:
+            print("[ERROR] decode_image_bytes: UnidentifiedImageError, cannot decode as image")
+            return None
+        except Exception as e:
+            print(f"[ERROR] decode_image_bytes: {e}")
+            return None
 
     def execute(self, requests):
-        request = requests[0]
+        print("===== TritonPythonModel.execute called =====", flush=True)
+        print(f"[EXECUTE] Number of requests: {len(requests)}", flush=True)
         responses = []
-        # 1. Extract batched inputs
-        images = pb_utils.get_input_tensor_by_name(request, "image").as_numpy()         # [B]
-        prompts = pb_utils.get_input_tensor_by_name(request, "prompt").as_numpy()       # [B]
-        max_tokens = pb_utils.get_input_tensor_by_name(request, "max_tokens").as_numpy()
-        temperature = pb_utils.get_input_tensor_by_name(request, "temperature").as_numpy()
-        top_k = pb_utils.get_input_tensor_by_name(request, "top_k").as_numpy()
-        freq_penalty = pb_utils.get_input_tensor_by_name(request, "frequency_penalty").as_numpy()
-        seed = pb_utils.get_input_tensor_by_name(request, "seed").as_numpy()
-        batch_size = images.shape[0]
 
-        # 2. Send batched request to LLaVA
-        llava_inputs = [
-            pb_utils.Tensor("image", images),
-            pb_utils.Tensor("prompt", prompts),
-            pb_utils.Tensor("max_tokens", max_tokens),
-            pb_utils.Tensor("temperature", temperature),
-            pb_utils.Tensor("top_k", top_k),
-            pb_utils.Tensor("frequency_penalty", freq_penalty),
-            pb_utils.Tensor("seed", seed.reshape(-1))
-        ]
+        for request in requests:
+            # 1. Extract batched inputs
+            print("[EXECUTE] Extracting inputs...", flush=True)
+            images = pb_utils.get_input_tensor_by_name(request, "image").as_numpy()  # [B]
+            prompts = pb_utils.get_input_tensor_by_name(request, "prompt").as_numpy()  # [B]
+            max_tokens = pb_utils.get_input_tensor_by_name(request, "max_tokens").as_numpy()
+            batch_size = images.shape[0]
+            print(f"[INFO] Batch size: {batch_size}", flush=True)
 
-        # llava_result = pb_utils.InferenceRequest(
-        # model_name=self.llava_model,
-        # inputs=llava_inputs,
-        # requested_output_names=["text"]
-        # ).exec()
+            print(f"[INFO] Formatted prompts: {prompts}", flush=True)
+            print(f"[INFO] Batch size: {batch_size}", flush=True)
+            print(f"[INFO] images dtype: {images.dtype}, shape: {images.shape}", flush=True)
+            print(f"[INFO] max_tokens: {max_tokens}", flush=True)
 
-        # captions = llava_result.as_numpy("text")  # [B] byte strings
+            output_captions = []
+            output_embeddings = []
 
-        dummy_caption = "The person wears a short-sleeve T-shirt with solid color patterns"
-        captions = np.array([dummy_caption.encode("utf-8")] * batch_size)
+            for i in range(batch_size):
+                image_bytes = images[i]
+                prompt = prompts[i]
+                if isinstance(prompt, bytes):
+                    prompt = prompt.decode("utf-8")
 
-        # 3. Tokenize all captions in batch
-        decoded_captions = [cap.decode("utf-8") for cap in captions]
-        tokens = self.tokenizer(
-            decoded_captions,
-            return_tensors="np",
-            padding="max_length",
-            truncation=True,
-            max_length=128
-        )
+                max_new_tokens = int(max_tokens[i]) if max_tokens is not None else 30
 
-        # 4. Send batched BERT request
-        bert_inputs = [
-            pb_utils.Tensor("input_ids", tokens["input_ids"].astype(np.int32)),
-            pb_utils.Tensor("attention_mask", tokens["attention_mask"].astype(np.int32))
-        ]
+                pil_img = self.decode_image_bytes(image_bytes)
+                if pil_img is None:
+                    caption = "Error: Unable to decode image"
+                    output_captions.append(caption)
+                    output_embeddings.append(np.zeros((768,), dtype=np.float32))  # fallback vector
+                    continue
 
-        bert_result = pb_utils.InferenceRequest(
-            model_name=self.bert_model,
-            inputs=bert_inputs,
-            requested_output_names=["pooled_output"]
-        ).exec()
+                self.llava_args.input_text = prompt
+                self.llava_args.max_new_tokens = max_new_tokens
+                try:
+                    _, output_text = self.llava_model.run(
+                        self.llava_args.input_text, pil_img, self.llava_args.max_new_tokens
+                        )
+                    caption = output_text[0][0] if isinstance(output_text[0], list) else output_text[0]
+                except Exception as e:
+                    caption = f"Error: {str(e)}"
 
-        embeddings = bert_result.as_numpy("pooled_output")  # [B, 768]
+                print(f"[INFO] Received captions from LLaVA: {caption}", flush=True)
 
-        # 5. Build responses
-        for i in range(batch_size):
-            out_caption = pb_utils.Tensor("text", np.array([captions[i]], dtype=np.object_))
-            out_embed = pb_utils.Tensor("pooled_output", embeddings[i:i+1])
-            responses.append(pb_utils.InferenceResponse(output_tensors=[out_embed, out_caption]))
+                tokens = self.bert_tokenizer(
+                    caption,
+                    return_tensors="np",
+                    padding="max_length",
+                    truncation=True,
+                    max_length=128
+                )
+                print(f"[INFO] Tokens input_ids shape: {tokens['input_ids'].shape}, \
+                attention_mask shape: {tokens['attention_mask'].shape}", flush=True)
 
+                # 4. Send batched BERT request
+                bert_inputs = [
+                    pb_utils.Tensor("input_ids", tokens["input_ids"].astype(np.int64)),
+                    pb_utils.Tensor("attention_mask", tokens["attention_mask"].astype(np.int64))
+                ]
+
+                print(f"[INFO] Inputs for the BERT model: {bert_inputs}", flush=True)
+                print(f"[INFO] Sending request to BERT model: {self.bert_model_name}", flush=True)
+                bert_request = pb_utils.InferenceRequest(
+                    model_name=self.bert_model_name,
+                    inputs=bert_inputs,
+                    requested_output_names=["pooled_output"]
+                )
+                bert_response = bert_request.exec()
+                embeddings_tensor = pb_utils.get_output_tensor_by_name(bert_response, "pooled_output")
+                if embeddings_tensor is None:
+                    print("[ERROR] No 'pooled_output' in BERT response!", flush=True)
+                    print("[ERROR] All response tensors:", [t.name() for t in bert_response], flush=True)
+                    raise ValueError("BERT did not return 'pooled_output'")
+                try:
+                    if embeddings_tensor.is_cpu():
+                        embeddings_np = embeddings_tensor.as_numpy()
+                    else:
+                        embeddings_np = from_dlpack(embeddings_tensor.to_dlpack()).to("cpu").cpu().detach().numpy()
+                except Exception as e:
+                    print(f"[ERROR] BERT Triton inference failed: {e}", flush=True)
+                    embeddings_np = np.zeros((1, 768), dtype=np.float32)
+                    
+                output_captions.append(caption)
+                output_embeddings.append(embeddings_np[0])
+
+        out_caption = pb_utils.Tensor("text", np.array(output_captions, dtype=np.object_))
+        out_embed = pb_utils.Tensor("pooled_output", np.stack(output_embeddings).astype(np.float32))
+        responses.append(pb_utils.InferenceResponse(output_tensors=[out_caption, out_embed]))
+        print("===== TritonPythonModel.execute completed =====", flush=True)
         return responses
-    
-        # for request in requests:
-        #     try:
-        #         # image and prompt preprocessing
-        #         image = pb_utils.get_input_tensor_by_name(request, "image").as_numpy()
-        #         prompt = pb_utils.get_input_tensor_by_name(request, "prompt").as_numpy()[0].decode("utf-8")
-        #         max_tokens = pb_utils.get_input_tensor_by_name(request, "max_tokens").as_numpy()
-        #         top_k = pb_utils.get_input_tensor_by_name(request, "top_k").as_numpy()
-        #         temperature = pb_utils.get_input_tensor_by_name(request, "temperature").as_numpy()
-        #         frequency_penalty = pb_utils.get_input_tensor_by_name(request, "frequency_penalty").as_numpy()
-        #         seed = pb_utils.get_input_tensor_by_name(request, "seed").as_numpy()
-
-        #         llava_inputs = [
-        #             pb_utils.Tensor("image", image),
-        #             pb_utils.Tensor("prompt", np.array([prompt.encode("utf-8")], dtype=np.object_)),
-        #             pb_utils.Tensor("max_tokens", max_tokens),
-        #             pb_utils.Tensor("temperature", temperature),
-        #             pb_utils.Tensor("top_k", top_k),
-        #             pb_utils.Tensor("frequency_penalty", frequency_penalty),
-        #             pb_utils.Tensor("seed", seed),
-        #         ]
-
-        #         try:
-        #             llava_result = pb_utils.InferenceRequest(
-        #             model_name=self.llava_model,
-        #             inputs=llava_inputs,
-        #             requested_output_names=["text"]
-        #             ).exec() 
-        #         except Exception as e:
-        #             error_msg = f"LLaVA-BERT pipeline failed: {str(e)}"
-        #             responses.append(pb_utils.InferenceResponse(error=pb_utils.TritonError(error_msg)))
-        #             return responses
-
-        #         caption = llava_result.as_numpy("text")[0].decode("utf-8")
-
-        #         # Tokenize caption
-        #         tokens = self.tokenizer(
-        #             caption,
-        #             return_tensors="np",
-        #             padding="max_length",
-        #             truncation=True,
-        #             max_length=128
-        #         )
-
-        #         # 4. Run BERT
-        #         bert_result = pb_utils.InferenceRequest(
-        #             model_name=self.bert_model,
-        #             inputs=[
-        #                 pb_utils.Tensor("input_ids", tokens["input_ids"].astype(np.int32)),
-        #                 pb_utils.Tensor("attention_mask", tokens["attention_mask"].astype(np.int32)),
-        #             ],
-        #             requested_output_names=["pooled_output"]
-        #         ).exec()
-
-        #         embedding = bert_result.as_numpy("pooled_output")[0]
-
-        #         output_caption = pb_utils.Tensor("text", np.array([caption.encode("utf-8")], dtype=np.object_))
-        #         output_embedding = pb_utils.Tensor("pooled_output", np.expand_dims(embedding, axis=0))
-        #         responses.append(pb_utils.InferenceResponse(output_tensors=[output_embedding, output_caption]))
-        #     except Exception as e:
-        #         error_msg = f"Triton Server LLaVA-BERT pipeline failed: {str(e)}"
-        #         responses.append(pb_utils.InferenceResponse(error=pb_utils.TritonError(error_msg)))
-        # return responses

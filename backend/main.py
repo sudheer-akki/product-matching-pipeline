@@ -56,27 +56,6 @@ async def lifespan(app: FastAPI):
         app.state.container.processors = processors
         log_event("info", "Model encoders loaded: DINOv2 and BERT")
 
-        app.state.batcher_bert = InferenceBatcher(
-        max_batch_size=8,
-        max_wait_time=0.05,  # or tune based on load
-        infer_fn=infer_bert  # must accept List of inputs
-        )
-        asyncio.create_task(app.state.batcher_bert._batch_worker())
-
-        app.state.batcher_dino = InferenceBatcher(
-            max_batch_size=8,
-            max_wait_time=0.05,
-            infer_fn=infer_dinov2  # define similar function
-        )
-        asyncio.create_task(app.state.batcher_dino._batch_worker())
-
-        app.state.batcher_llava_bert = InferenceBatcher(
-            max_batch_size=8,
-            max_wait_time=0.05,
-            infer_fn=infer_llava_bert
-        )
-        asyncio.create_task(app.state.batcher_llava_bert._batch_worker())
-
         log_event("info", "Application startup complete")
         yield
 
@@ -94,13 +73,14 @@ app = FastAPI(lifespan=lifespan, title="Product Search API")
 def health_check():
     return {"status": "ok"}
 
+allow_origins=["http://localhost:7860", "http://127.0.0.1:7860"]
 
 # CORS: allow frontend (Gradio or other UI) to call API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins= ["*"], #["http://localhost:7860"], 
+    allow_origins= allow_origins, # ["*"], #["http://localhost:7860"], 
     allow_credentials=True,
-    allow_methods=["POST", "GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 

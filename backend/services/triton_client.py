@@ -1,21 +1,43 @@
 import tritonclient.http as httpclient
 import numpy as np
+from PIL import Image
+import io
 from typing import Tuple, List
 from tritonclient.utils import np_to_triton_dtype
 from core import log_event, load_config
+import traceback
 
 config = load_config()
-
 TRITON_URL = config.api.triton_url #"triton:8000" 
-client = httpclient.InferenceServerClient(url=TRITON_URL,ssl=False)
+
+
+def is_triton_available(url):
+    try:
+        client = httpclient.InferenceServerClient(url=url, ssl=False)
+        client.is_server_live()
+        client.server_url = url
+        return client
+    except Exception:
+        return None
+
+client = is_triton_available("localhost:8000")
+
+if client is None:
+    client = is_triton_available(TRITON_URL)
+    if client is None:
+        raise RuntimeError(f"Could not connect to Triton at localhost:8000 or {TRITON_URL}")
+
+log_event("info", f"Connected to Triton at: {client.server_url}")
+
 
 USE_DUMMY_BERT = False  # Set this to False when real Triton is available
 USE_DUMMY_LLAVA = False  # Toggle for test mode
 USE_DUMMY_DINOV2 = False  # Toggle this flag based on environment or config
 
+
 # ------------------------- BERT -------------------------
 
-def infer_bert(input_text: dict) -> np.ndarray:
+async def infer_bert(input_text: dict) -> dict:
     """
     Sends a batch of inputs to the Triton server for BERT embeddings.
     input_ids_list: list of np.array, each shape [seq_len]
@@ -47,14 +69,12 @@ def infer_bert(input_text: dict) -> np.ndarray:
 
         response = client.infer(model_name="bert", inputs=inputs, outputs=outputs)
         embedding  = response.as_numpy("pooled_output") # shape: [B, S, 768]
-        embedding = embedding.astype("float32").reshape(1, -1)
-        # mask = attention_mask[..., np.newaxis]  # shape: [B, S, 1]
-        # masked = last_hidden * mask
-        # summed = masked.sum(axis=1)
-        # counts = mask.sum(axis=1)
-        # embedding = summed / counts # shape: [B, 768]
+        #embedding = embedding.astype("float32").reshape(1, -1)
         log_event("info", "BERT Triton inference successful", {"embedding_shape": embedding.shape})
-        return embedding
+        return {
+            "embedding": embedding,
+            "embedding_shape": list(embedding.shape)
+        }
     except Exception as e:
         log_event("error", "BERT Triton inference failed", {"exception": str(e)})
         raise e
@@ -62,8 +82,11 @@ def infer_bert(input_text: dict) -> np.ndarray:
 
 # ------------------------- DINOv2 -------------------------
 
-def infer_dinov2(pixel_values: np.ndarray) -> np.ndarray:
+async def infer_dinov2(input_data: dict ) -> dict:
+    assert isinstance(input_data, dict)
+    assert "pixel_values" in input_data
     try:
+        pixel_values = input_data["pixel_values"]
         pixel_values = np.asarray(pixel_values) 
         batch_size = pixel_values.shape[0]
         
@@ -80,7 +103,10 @@ def infer_dinov2(pixel_values: np.ndarray) -> np.ndarray:
         response = client.infer(model_name="dinov2", inputs=inputs, outputs=outputs)
         embedding = response.as_numpy("cls_embedding") #[B, 768]
         log_event("info", "DINOv2 Triton inference successful", {"embedding_shape": embedding.shape})
-        return embedding
+        return  {
+            "embedding": embedding,
+            "embedding_shape": list(embedding.shape)
+        }
     except Exception as e:
         log_event("error", "DINOv2 Triton inference failed", {"exception": str(e)})
         raise e
@@ -88,17 +114,19 @@ def infer_dinov2(pixel_values: np.ndarray) -> np.ndarray:
 # ------------------------- LLaVA -------------------------
 
 def prepare_tensor(name, arr, dtype):
-    #arr = np.array([value], dtype=dtype) if isinstance(value, (str, bytes)) else np.array([value], dtype=dtype)
     infer_input = httpclient.InferInput(name, arr.shape, np_to_triton_dtype(dtype))
     infer_input.set_data_from_numpy(arr)
     return infer_input
 
 def prepare_image_tensor(image_bytes: bytes) -> np.ndarray:
-    #image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    #buf = io.BytesIO()
-    #image.save(buf, format="JPEG")
-    #return np.array([buf.getvalue()], dtype=object)
-    return  np.array([image_bytes], dtype=object)
+    """
+    Prepare image tensor for Triton Python backend.
+    Args:
+        image_bytes: Raw bytes of the image (e.g., from open("img.jpg", "rb").read())
+    Returns:
+        np.ndarray of shape (1,) and dtype object, as expected by Triton TYPE_STRING
+    """
+    return np.array([image_bytes], dtype=object)
 
 
 def build_input_tensors(image_bytes, prompt, max_tokens=128, temperature=0.2, top_k=1, freq_penalty=0.0, seed=42):
@@ -111,9 +139,110 @@ def build_input_tensors(image_bytes, prompt, max_tokens=128, temperature=0.2, to
         prepare_tensor("frequency_penalty", np.array([freq_penalty], dtype=np.float32), np.float32),
         prepare_tensor("seed", np.array([seed], dtype=np.uint64), np.uint64),
     ]
-    
 
-def infer_llava_bert(batch_inputs: List[dict]) -> List[Tuple[str, np.ndarray]]:
+def resize_image_bytes(image_bytes, size=(336, 336)):
+    pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    pil_img = pil_img.resize(size)
+    buf = io.BytesIO()
+    pil_img.save(buf, format='JPEG')
+    return buf.getvalue()
+
+
+def infer_llava_bert(input_dict: dict) -> Tuple[str, np.ndarray]:
+    """
+    Inference for LLaVA-BERT pipeline using Triton, for a single input.
+
+    Args:
+        input_dict (dict): Must contain keys:
+            - image_bytes, prompt, max_tokens, temperature, top_k, freq_penalty, seed
+
+    Returns:
+        Tuple[str, np.ndarray]: (caption, embedding) for the input
+    """
+    try:
+        log_event("info", "infer_llava_bert: Starting inference", {
+            "input_keys": list(input_dict.keys()),
+            "image_bytes_size": len(input_dict["image_bytes"]) if "image_bytes" in input_dict else None,
+            "prompt": input_dict.get("prompt", "")
+        })
+
+        if USE_DUMMY_LLAVA:
+            dummy_embedding = np.random.rand(768).astype(np.float32)
+            dummy_caption = "The person wears a short-sleeve T-shirt with solid color patterns and long pants."
+            log_event("info", "Returning dummy LLaVA caption (Triton not active)", {"caption": dummy_caption})
+            return dummy_caption, dummy_embedding.copy()
+
+        log_event("info", "LLaVA-BERT single inference started", {})
+
+        resized_bytes = resize_image_bytes(input_dict["image_bytes"], size=(384, 384))
+        log_event("info", "Image resized locally", {"resized_bytes_size": len(resized_bytes)})
+
+        prompt_bytes = input_dict["prompt"].encode("utf-8")
+        max_tokens = np.array(input_dict.get("max_tokens", 128), dtype=np.int32)
+        temperature = np.array(input_dict.get("temperature", 0.2), dtype=np.float32)
+        top_k = np.array(input_dict.get("top_k", 1), dtype=np.int32)
+        freq_penalty = np.array(input_dict.get("freq_penalty", 0.0), dtype=np.float32)
+        seed = np.array(input_dict.get("seed", 42), dtype=np.uint64)
+
+        log_event("info", "Prepared Triton inputs", {
+            "prompt_bytes": prompt_bytes,
+            "max_tokens": int(max_tokens),
+            "temperature": float(temperature),
+            "top_k": int(top_k),
+            "freq_penalty": float(freq_penalty),
+            "seed": int(seed)
+        })
+
+        inputs = [
+            prepare_tensor("image", np.array([[resized_bytes]], dtype=np.object_), np.object_),
+            prepare_tensor("prompt", np.array([[prompt_bytes]], dtype=np.object_), np.object_),
+            prepare_tensor("max_tokens", np.array([[max_tokens]], dtype=np.int32), np.int32)
+        ]
+
+        outputs = [
+            httpclient.InferRequestedOutput("pooled_output"),
+            httpclient.InferRequestedOutput("text")
+        ]
+
+        log_event("info", "Sending inference to Triton", {"model_name": "llava_to_bert"})
+
+        # Run inference
+        response = client.infer(model_name="llava_to_bert", inputs=inputs, outputs=outputs)
+
+        # Parse outputs (always return the first item in output)
+        embedding = response.as_numpy("pooled_output")[0]  # shape: [768]
+        caption = response.as_numpy("text")[0].decode("utf-8")
+
+        log_event("info", "LLaVA-BERT inference completed", {
+            "caption": caption,
+            "embedding_shape": embedding.shape
+        })
+        return caption, embedding
+
+    except Exception as e:
+        log_event("error", "LLaVA-BERT single failed", {
+            "exception": str(e),
+            "traceback": traceback.format_exc()
+        })
+        return "Caption generation failed.", np.zeros((768,), dtype=np.float32)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def infer_llava_bert_batch(batch_inputs: List[dict]) -> List[Tuple[str, np.ndarray]]:
     """
     Batched inference for LLaVA-BERT pipeline using Triton.
 

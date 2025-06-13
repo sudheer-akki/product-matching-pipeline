@@ -8,14 +8,16 @@ services:
     image: app
     container_name: app
     volumes:
-      - ./:/workspace
+      - ./backend:/workspace/backend
+      - ./frontend:/workspace/frontend
+      - ./configs:/workspace/configs
+      - ./db:/workspace/db
     working_dir: /workspace
     ports:
       - "6000:6000"
       - "7860:7860"
     depends_on:
       - mongo
-      - mongo-express
     command: ["bash", "entry_point.sh"]
 
   mongo:
@@ -31,31 +33,30 @@ services:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin123
 
-  mongo-express:
-    image: mongo-express
-    container_name: mongo-express
-    restart: always
-    ports:
-      - "8081:8081"
-    depends_on:
-      - mongo
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
-      ME_CONFIG_MONGODB_SERVER: mongo
-      ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: PassWord123
+  # mongo-express:
+  #   image: mongo-express
+  #   container_name: mongo-express
+  #   restart: always
+  #   ports:
+  #     - "8081:8081"
+  #   depends_on:
+  #     - mongo
+  #   environment:
+  #     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+  #     ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
+  #     ME_CONFIG_MONGODB_SERVER: mongo
+  #     ME_CONFIG_BASICAUTH_USERNAME: admin
+  #     ME_CONFIG_BASICAUTH_PASSWORD: PassWord123
 
   triton:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.triton
-    image: triton-server
-    container_name: triton
+    image: sudheerakki/triton_multibackend_tensorrt_llm:v1
+    container_name: triton-server
     restart: unless-stopped
     working_dir: /workspace
     volumes:
-      - ./:/workspace
+      - ./models:/workspace/models
+      - ./dataset/sample:/workspace/dataset/sample
+      - ./create_engines.sh:/workspace/create_engines.sh
     ports:
       - "8000:8000"  # HTTP
       - "8001:8001"  # gRPC
@@ -72,5 +73,9 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     stdin_open: true
     tty: true
-    #command: ["/bin/bash"]
-    command: "tritonserver --model-repository=./models/engines"
+    command: >
+      bash -c "
+        chmod +x /workspace/create_engines.sh && \
+        /workspace/create_engines.sh && \
+        tritonserver --model-repository=/workspace/models/engines
+      "

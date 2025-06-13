@@ -17,7 +17,8 @@ class InferenceBatcher:
         self,
         max_batch_size: int,
         max_wait_time: float,
-        infer_fn: Callable[[List[Any]], List[Any]]
+        infer_fn: Callable[[List[Any]], List[Any]],
+        mode: str = "auto"
     ):
         """
         Args:
@@ -29,6 +30,7 @@ class InferenceBatcher:
         self.max_batch_size = max_batch_size
         self.max_wait_time = max_wait_time
         self.infer_fn = infer_fn
+        self.mode = mode
 
         self._queue: asyncio.Queue[Tuple[Any, asyncio.Future]] = asyncio.Queue()
         self._worker_task = asyncio.create_task(self._batch_worker())
@@ -80,13 +82,25 @@ class InferenceBatcher:
                     break
 
             return batch_inputs, futures
-
+    
     async def _run_inference(self, batch_inputs: List[Any]) -> List[Any]:
-        if inspect.iscoroutinefunction(self.infer_fn):
-            return await self.infer_fn(batch_inputs)
-        else:
+        if self.mode == "async":
+            # Always await, fail if not async
+            result = self.infer_fn(batch_inputs)
+            if not inspect.isawaitable(result):
+                raise RuntimeError("infer_fn must be async when mode='async'")
+            return await result
+        elif self.mode == "sync":
+            # Always run in executor, even if it’s awaitable (force sync)
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, self.infer_fn, batch_inputs)
+        else:  # auto mode (default, your current logic)
+            result = self.infer_fn(batch_inputs)
+            if inspect.isawaitable(result):
+                return await result
+            else:
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(None, self.infer_fn, batch_inputs)
 
     def _resolve_futures(self, futures: List[asyncio.Future], outputs: List[Any]):
         """

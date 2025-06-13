@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Form, Request
 from services import bert_pipeline, fetch_metadata
 from core import log_event
+import asyncio
 
 router = APIRouter()
 
@@ -13,7 +14,10 @@ async def search_text(request: Request, query: str = Form(...)):
     })
     try:
         # BERT + FAISS Search Pipeline
-        numeric_ids = await bert_pipeline (request, text=query, top_k=5)
+        bert_search = asyncio.create_task(bert_pipeline(request,text=query, top_k=5))
+        #numeric_ids = await bert_pipeline(request,text=query, top_k=5)
+    
+        numeric_ids = await asyncio.wait_for(bert_search, timeout=5)
         log_event("info", "BERT + FAISS search complete", {
             "result_count": len(numeric_ids),
             "request_id": request_id
@@ -22,7 +26,7 @@ async def search_text(request: Request, query: str = Form(...)):
         if not numeric_ids:
             return {"query": query, "results": []}
         
-        #numeric_ids  = [30533, 11752, 13372]
+        #dummy_numeric_ids  = [30533, 11752, 13372]
 
         # Fetch metadata from MongoDB using Numeric IDs
         results = fetch_metadata(request, numeric_ids = numeric_ids)

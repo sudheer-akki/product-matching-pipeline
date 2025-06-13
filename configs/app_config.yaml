@@ -18,11 +18,12 @@ mongo:
 
 models:
   llava:
-    model_name: "llava-1.5-7b-hf"
-    save_path: "models_src/llava"
-    ckpt_path: "models_src/llava/ckpt"
-    engine_path: "models/llava/1"
-    dtype: "float16"
+    hf_model_dir: "/workspace/models/llava-onevision-qwen2-7b-ov-hf"
+    visual_engine_dir: "/workspace/models/llava_vision_encoder"
+    llm_engine_dir: "/workspace/models/llava_vision"
+    visual_engine_name: "model.engine"
+    llm_engine_name: "rank0.engine"
+    log_level: "info"
 
   dinov2:
     name: "facebook/dinov2-base"
@@ -32,6 +33,7 @@ models:
 
   bert:
     name: "bert-base-uncased"
+    triton_model_name: "bert"
     path: "models_src/bert"
     engine_path: "models/bert/1/bert_fp16.plan"
     dtype: "float16"
@@ -44,4 +46,4 @@ dataset:
 api:
   frontend_url: "http://localhost:7860"
   backend_url: "http://localhost:6000"
-  triton_url: "triton:8000"
+  triton_url: "172.81.127.41:19489"

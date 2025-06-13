@@ -1,9 +1,12 @@
-#CUDA: 12.6.3 NVIDIA DRIVER: 560.35.05
+#Container Specs:
+# CUDA: 12.6.3 NVIDIA DRIVER: 560.35.05
 # Ubuntu: 24.04 CUDA 12.6.3 
 # Python: 3.12
 # TensorRT: 10.7.0.23
 # Triton Server: 2.53.0
 # TensorRT-LLM: 0.16.0
+# Torch: 2.6.0
+# TensorFlow: 2.16.0
 # vLLM: 0.55
 # Arch: x86, Arm SBSA
 
@@ -23,11 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements_server.txt .
 RUN pip3 install --no-cache-dir -r requirements_server.txt
 
-#COPY ./models/engines /models
-
 # Copy TensorRT backend from trt stage
 COPY --from=trt /opt/tritonserver/backends/tensorrt /opt/tritonserver/backends/tensorrt
 
+EXPOSE 8000 8001 8002
 
 # Expose Triton server by default
 CMD ["tritonserver", "--model-repository=/models"]

@@ -1,0 +1,51 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+# C/C++/CUDA extensions
+*.so
+*.dll
+*.dylib
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+.Python
+
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+develop-eggs/
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# Logs and outputs
+logs/
+
+# Gradio temporary files
+gradio_cached_examples/
+__results__/
+models/model_src/
+
+backup/
+**/*.onnx
+**/*.plan
+*.pdf
+
+db/faiss/**/*.faiss
+db/mongo/**/*.json
+
+commands.txt
+assets/workflow.drawio
+requirements_remote.txt
+dataset/deepfashion
+model_src

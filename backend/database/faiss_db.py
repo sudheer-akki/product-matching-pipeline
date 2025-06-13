@@ -27,7 +27,6 @@ class FaissIndexHandler:
         """
         Loads the FAISS index from file, or creates a new one if not found.
         """
-   
         try:
             if self.saved_index_path and os.path.exists(self.saved_index_path):
                 index = faiss.read_index(self.saved_index_path)
@@ -67,7 +66,7 @@ class FaissIndexHandler:
             print(f"[ERROR] Failed to initialize FAISS index: {e}")
             raise
 
-    def search(self, embedding: np.ndarray, top_k: int = 5,  distance_threshold: int = 10) -> tuple[np.ndarray, np.ndarray]:
+    def _search_index(self, name: str, embedding: np.ndarray, top_k: int = 5  ) -> tuple[np.ndarray, np.ndarray]:
         """
         Searches the index for the top_k closest vectors to the given embedding 
         using saved Cache if available
@@ -86,21 +85,15 @@ class FaissIndexHandler:
             # Perform search and cache result
             distances, ids = self.index.search(embedding.astype("float32"),top_k)
             
-            if distance_threshold is not None:
-                # Mask values greater than the threshold
-                mask = distances <= distance_threshold
-                filtered_ids = np.where(mask, ids, -1)  # Mark unmatched as -1
-                filtered_distances = np.where(mask, distances, float("inf"))
-                safe_log_event("info", "FAISS text filtered ids", {
-                    "ids": ids.tolist(),
-                    "distances": distances.tolist()
-                })
-                return filtered_distances, filtered_ids
+            safe_log_event("info", f"FAISS Search ids for {name}", {
+                "ids": ids[0].tolist(),
+                "distances": distances[0].tolist()
+            })
             faiss_search_cache[key] = (distances, ids)
-            safe_log_event("info", "FAISS search executed", {"top_k": top_k})
-            return distances, ids
+            safe_log_event("info", f"FAISS search executed for {name}", {"top_k": top_k})
+            return ids[0].tolist(), distances[0].tolist()
         except Exception as e:
-            safe_log_event("error", "FAISS search failed", {"exception": str(e)})
+            safe_log_event("error", f"FAISS search failed for {name}", {"exception": str(e)})
             raise
 
     def search_batch(self, embeddings: np.ndarray, top_k: int = 5, distance_threshold: int = 50) -> tuple[np.ndarray, np.ndarray]:

@@ -31,8 +31,15 @@ async def search_image(request: Request, image: UploadFile = File(...), top_k: i
         llava_bert_response = asyncio.create_task(llava_bert_pipeline(
             request = request,
             image_bytes = image_bytes,
-            prompt="Describe this image.",
-            max_tokens=128,
+            prompt=  
+            "Describe the image with detailed clothing and accessory attributes, using the following format and wording:\n"
+            "The upper clothing has [sleeve length], [fabric] fabric and [pattern] patterns. "
+            "The neckline of it is [neckline]. The lower clothing is of [length] length. "
+            "The fabric is [fabric] and it has [pattern] patterns. "
+            "There is an accessory on [body part]. "
+            "Also state the gender at the beginning of the description, like 'This is a [male/female]'.\n"
+            "Use the same structure and wording as above, filling in the specific details from the image.",
+            max_tokens=60,
             temperature=0.2,
             top_k=1,
             freq_penalty=0.0,
@@ -41,21 +48,21 @@ async def search_image(request: Request, image: UploadFile = File(...), top_k: i
         try:
             caption, bert_embedding = await asyncio.wait_for(llava_bert_response, timeout=5)
             log_event("info", "Generated Llava->Bert Embeddings", 
-                    {"caption": caption, 
-                    "Bert_embedding_shape":bert_embedding.shape,
-                    "request_id": request_id})
+                    {"request_id": request_id})
         except asyncio.TimeoutError:
             caption = None
             log_event("warn", "Generating Llava->Bert Embeddings timed out", {"request_id": request_id})
 
         caption_bert_ids = []
         if caption and caption.strip():
-            log_event("info", "Caption generated", {"caption": caption, "request_id": request_id})
-            caption_bert_ids  = search_text_vector(request, text_embeddings=bert_embedding, top_k=top_k)
+            log_event("info", "Caption generated", {"request_id": request_id})
+            caption_bert_ids = search_text_vector(request,text_embeddings=bert_embedding, top_k=top_k)
+            log_event("info", "Bert search complete", {"caption_bert_ids": caption_bert_ids, "request_id": request_id})
             
         dino_ids = await dino_task
+        if dino_ids and isinstance(dino_ids[0], list):
+            dino_ids = dino_ids[0]
         log_event("info", "DINO search complete", {"dino_ids": dino_ids, "request_id": request_id})
-
         # Combine and rerank
         log_event("info", "Sending to reranking", {
             "result_count": len(dino_ids) + len(caption_bert_ids),
@@ -70,6 +77,7 @@ async def search_image(request: Request, image: UploadFile = File(...), top_k: i
 
         log_event("info", "Reranked results", {
             "result_count": len(ranked_ids),
+            "ranked_ids": ranked_ids,
             "request_id": request_id
         })
 

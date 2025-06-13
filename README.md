@@ -8,7 +8,7 @@ Supports both **image** and **text** Inputs.
 
 - **🖼️ DINOv2** – Generates Image Embeddings  
 - **🧠 BERT** – Generates text embeddings  
-- **📸 LLaVA** – Captioning Input Image
+- **📸 LLaVA-OneVision** – Captioning Input Image
 
 ---
 
@@ -92,32 +92,34 @@ Supports both **image** and **text** Inputs.
 ├── docker         
 │      ├── Dockerfile.backend
 │      ├── Dockerfile.mongo
-│      ├── Dockerfile.triton
-│      └── Dockerfile.trtllm
+│      └── Dockerfile.triton
 │
 ├── frontend
 │   └─── app.py
 │
-├── models
-│    └─── engines
-│       ├── bert
-│       │   ├── 1
-│       │   │   └── model.plan
-│       │   ├── bert.onnx
-│       │   └── config.pbtxt
-│       ├── dinov2
-│       │   ├── 1
-│       │   │   └── model.plan
-│       │   ├── config.pbtxt
-│       │   └── dinov2.onnx
-│       ├── llava
-│       │   ├── 1
-│       │   │   └── model.engine
-│       │   ├── config.pbtxt
-│       └── llava_to_bert
-│            ├── 1
-│            │   └── model.py
-│            └── config.pbtxt
+├── engines
+│   ├── bert
+│   │   ├── 1
+│   │   │   └── model.plan
+│   │   ├── bert.onnx
+│   │   └── config.pbtxt
+│   ├── dinov2
+│   │   ├── 1
+│   │   │   └── model.plan
+│   │   ├── config.pbtxt
+│   │   └── dinov2.onnx
+│   └── llava_to_bert
+│       ├── 1
+│       │   └── model.py
+│       └── config.pbtxt
+├── llava_vision
+│   ├── config.json
+│   └── rank0.engine
+└── llava_vision_encoder
+    ├── config.json
+    ├── image_newlines.safetensors
+    └── model.engine
+
 ├── scripts     
 │    ├── bert_onnx_convert.py
 │    ├── dinov2_onnx_convert.py
@@ -138,7 +140,7 @@ Supports both **image** and **text** Inputs.
 ```
 ---
 
-## Work Flow
+## Workflow
 
 <img src="assets/workflow.drawio.png" width="600" height="300">
 ---
@@ -153,6 +155,12 @@ We use a **subset of the DeepFashion dataset** around 2k fashion product images:
 - 📚 [DeepFashion Dataset Info](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html)
 
 ---
+## Triton Platform Specs:
++ GPU: NVIDIA GeForce RTX 4090 (24GB VRAM)
++ CUDA: Version 12.8
++ Driver: 570.124.06
++ CUDA Compiler: 12.6
++ CPU: AMD EPYC 7282, 16-Core
 
 ## ⚡ Quick Start 
 
@@ -167,7 +175,7 @@ cd /product-matching-pipeline
 ```
 bash download_models.sh
 ```
-**Note:** Makesure to have files loaded into below folder
+**Note:** Make sure the following files are downloaded and in place:
 
 + bert_onnx -> models/engines/bert/bert.onnx
 + dino_onnx -> models/engines/dinov2/dino.onnx
@@ -175,24 +183,22 @@ bash download_models.sh
 + dino index -> db/faiss/dinov2.index
 + MongoDB Metadata -> db/mongo/metadata.json
 
-## 3. Create TensorRT Engines or Copy them into models/engines folder
+# Update configuration data
 
-* docker compose up triton -d
-* docker exec -it container_id bash
-* Run below command
-
-```sh
-bash create_engines.sh
-```
-
-### 4. Start the Application using Docker
+### 3. Start the Application (Docker)
 
 ```
 docker compose up -d
 ```
+This command will automatically:
 
-**Visit:** Frontend GUI on "http://localhost:7860"
++ Build Docker engines for each model if not already present.
 
-## 5. Upload Image from dataset/sample folder
++ Start the Triton Inference Server with all necessary backends and dependencies.
 
-See the results with metadata
+### Access the Frontend GUI: http://localhost:7860
+
+## 5. Upload Image
++ Open the GUI in your browser.
++ Upload an image from the **dataset/sample** folder.
++ Check the output results for product matches!
