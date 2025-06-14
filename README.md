@@ -183,13 +183,13 @@ bash download_models.sh
 + dino index -> db/faiss/dinov2.index
 + MongoDB Metadata -> db/mongo/metadata.json
 
-### Update configuration data
+### 3. Update configuration data
 
 + open **configs/app_config.yaml** file
 
 **Note:** Update values if needed
 
-### 3. Start the Application (Docker)
+### 4. Start the Application (Docker)
 
 ```
 docker compose up -d
