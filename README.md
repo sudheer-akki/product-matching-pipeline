@@ -2,6 +2,13 @@
 
 Supports both **image** and **text** Inputs.
 
+**Token Limit Notice:**
++ Text input is limited to a maximum of 128 tokens.
++ All input texts are tokenized using **bert-base-uncased**.
++ Inputs longer than 128 tokens will be automatically truncated.
+
+**Note:** For best results, keep prompts short, focused, and within 1–2 sentences.
+
 ---
 
 ## Models Used
