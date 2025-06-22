@@ -8,15 +8,11 @@
 
 This project is a fast, scalable, and efficient product matching system that leverages multimodal inputs—both text and images—to perform semantic similarity search. It's optimized using NVIDIA Triton Inference Server and integrates state-of-the-art models like DINOv2, BERT, and LLaVA for rich embeddings and captioning.
 
----
-
 ## Models Used
 
 - **DINOv2** – Generates Image Embeddings  
 - **BERT** – Generates text embeddings  
 - **LLaVA-OneVision** – Captioning Input Image
-
----
 
 ## Tech Stack
 
@@ -26,15 +22,14 @@ This project is a fast, scalable, and efficient product matching system that lev
 -  **FAISS** – Vector Database
 -  **MongoDB** – Stores metadata (Including Images)  
 -  **Docker Compose** – Orchestrates all Containers
----
-
+  
 ## Features
 
 - Supports **Image** or **Text** based Semantic Search
 - TensorRT-powered inference via **Triton**
 - FAISS + MongoDB integration for embeddings & metadata Storage
 - Easy-to-use **Gradio UI**
----
+
 ## Project Structure
 
 ```
@@ -144,7 +139,6 @@ This project is a fast, scalable, and efficient product matching system that lev
 ├── requirements_app.txt
 └── requirements_server.txt
 ```
----
 
 ## Workflow
 
@@ -159,7 +153,6 @@ We use a **subset of the DeepFashion dataset** around 2k fashion product images:
 - Product metadata (title, description, category)  
 - Fine-grained attributes  
 - [DeepFashion Dataset Info](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html)
----
 
 ## Token Limit Notice:
 + Text input is limited to a maximum of 128 tokens.
@@ -188,7 +181,7 @@ We use a **subset of the DeepFashion dataset** around 2k fashion product images:
 ### 1. Clone the Repo
 ```bash
 git clone https://github.com/sudheer-akki/product-matching-pipeline
-cd /product-matching-pipeline
+cd product-matching-pipeline
 ```
 
 ### 2. Download ONNX Models & Sample Database
@@ -241,7 +234,7 @@ This video includes:
 
 ## Support
 
-If you face any issues using this repository, feel free to [open an Issue](https://github.com/your-username/product-matching-pipeline/issues).  
+If you face any issues using this repository, feel free to [open an Issue](https://github.com/sudheer-akki/product-matching-pipeline/issues).  
 I’ll be happy to help troubleshoot and provide guidance.
 
 If you find this project useful, please consider giving it a ⭐ on GitHub!
