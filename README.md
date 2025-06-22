@@ -1,13 +1,12 @@
-# Product Matching Pipeline 
+# LLMs-Powered Product Matching Pipeline
 
-Supports both **image** and **text** Inputs.
+*A multimodal image and text-based product matching system using BERT, DINOv2, and LLaVA.*
 
-**Token Limit Notice:**
-+ Text input is limited to a maximum of 128 tokens.
-+ All input texts are tokenized using **bert-base-uncased**.
-+ Inputs longer than 128 tokens will be automatically truncated.
+Motivation: Inspired by research in vision-language models and large-scale product matching
 
-**Note:** For best results, keep prompts short, focused, and within 1–2 sentences.
+# Overview:
+
+This project is a fast, scalable, and efficient product matching system that leverages multimodal inputs—both text and images—to perform semantic similarity search. It's optimized using NVIDIA Triton Inference Server and integrates state-of-the-art models like DINOv2, BERT, and LLaVA for rich embeddings and captioning.
 
 ---
 
@@ -152,7 +151,7 @@ Supports both **image** and **text** Inputs.
 <img src="assets/workflow.drawio.png" width="600" height="300">
 ---
 
-## 📦 Dataset – DeepFashion
+## Dataset – DeepFashion
 
 We use a **subset of the DeepFashion dataset** around 2k fashion product images:
 
@@ -160,8 +159,14 @@ We use a **subset of the DeepFashion dataset** around 2k fashion product images:
 - ✅ Product metadata (title, description, category)  
 - ✅ Fine-grained attributes  
 - 📚 [DeepFashion Dataset Info](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html)
-
 ---
+
+## Token Limit Notice:
++ Text input is limited to a maximum of 128 tokens.
++ All input texts are tokenized using **bert-base-uncased**.
++ Inputs longer than 128 tokens will be automatically truncated.
+
+**Note:** For best results, keep prompts short, focused, and within 1–2 sentences.
 ## Triton Platform Specs:
 + GPU: NVIDIA GeForce RTX 4090 (24GB VRAM)
 + CUDA: Version 12.8
@@ -169,7 +174,16 @@ We use a **subset of the DeepFashion dataset** around 2k fashion product images:
 + CUDA Compiler: 12.6
 + CPU: AMD EPYC 7282, 16-Core
 
-## ⚡ Quick Start 
+## ⚡ Quick Start Guide
+
+### * Prerequisites:
+
+```bash
+- Docker
+- NVIDIA GPU (for Triton inference)
+- Python 3.8+ (for any local testing)
+
+```
 
 ### 1. Clone the Repo
 ```bash
@@ -213,3 +227,14 @@ This command will automatically:
 + Open the GUI in your browser.
 + Upload an image from the **dataset/sample** folder.
 + Check the output results for product matches!
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## Support
+
+If you face any issues using this repository, feel free to [open an Issue](https://github.com/your-username/product-matching-pipeline/issues).  
+I’ll be happy to help troubleshoot and provide guidance.
+
+If you find this project useful, please consider giving it a ⭐ on GitHub!
