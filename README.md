@@ -2,7 +2,7 @@
 
 *A multimodal image and text-based product matching system using BERT, DINOv2, and LLaVA.*
 
-Motivation: Inspired by research in vision-language models and large-scale product matching
+ **Motivation:** Inspired by research in vision-language models and large-scale product matching.
 
 # Overview:
 
