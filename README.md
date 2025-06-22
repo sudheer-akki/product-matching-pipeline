@@ -12,9 +12,9 @@ This project is a fast, scalable, and efficient product matching system that lev
 
 ## Models Used
 
-- **🖼️ DINOv2** – Generates Image Embeddings  
-- **🧠 BERT** – Generates text embeddings  
-- **📸 LLaVA-OneVision** – Captioning Input Image
+- **DINOv2** – Generates Image Embeddings  
+- **BERT** – Generates text embeddings  
+- **LLaVA-OneVision** – Captioning Input Image
 
 ---
 
@@ -35,7 +35,7 @@ This project is a fast, scalable, and efficient product matching system that lev
 - FAISS + MongoDB integration for embeddings & metadata Storage
 - Easy-to-use **Gradio UI**
 ---
-## 📁 Project Structure
+## Project Structure
 
 ```
 ├── LICENSE
@@ -155,10 +155,10 @@ This project is a fast, scalable, and efficient product matching system that lev
 
 We use a **subset of the DeepFashion dataset** around 2k fashion product images:
 
-- ✅ High-resolution product images  
-- ✅ Product metadata (title, description, category)  
-- ✅ Fine-grained attributes  
-- 📚 [DeepFashion Dataset Info](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html)
+- High-resolution product images  
+- Product metadata (title, description, category)  
+- Fine-grained attributes  
+- [DeepFashion Dataset Info](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html)
 ---
 
 ## Token Limit Notice:
@@ -228,9 +228,16 @@ This command will automatically:
 + Upload an image from the **dataset/sample** folder.
 + Check the output results for product matches!
 
-## 📄 License
+## Demo
 
-This project is licensed under the [MIT License](LICENSE).
+Watch a short demo of the Product Matching Pipeline in action:  
+📺 [Click to Watch on Google Drive](https://drive.google.com/file/d/1HMTTXWTheWwC-zN2QKnYVv3Cr8a9dBPi/view?usp=drive_link)
+
+This video includes:
+- Launching the web UI
+- Uploading a sample product image
+- Retrieving visually and semantically similar matches
+- Real-time inference using Triton
 
 ## Support
 
@@ -238,3 +245,17 @@ If you face any issues using this repository, feel free to [open an Issue](https
 I’ll be happy to help troubleshoot and provide guidance.
 
 If you find this project useful, please consider giving it a ⭐ on GitHub!
+
+## Areas for Improvement
+
+While this system is production-ready and functional, there is **room for improvement** in two key areas:
+
+- **Product Matching Ranking** – Current ranking works well but can be further refined to improve accuracy, especially in visually or semantically similar product groups.
+- **Code Optimization** – Certain components (e.g., batching, async inference, reranking logic) can be optimized for performance and efficiency.
+
+These areas are open-ended and can be enhanced depending on specific use cases or deployment needs.
+
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
