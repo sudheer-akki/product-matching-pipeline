@@ -223,7 +223,7 @@ This command will automatically:
 
 ## Demo
 
-Watch a short demo of the Product Matching Pipeline in action:  
+Watch a short demo:  
 📺 [Click to Watch on Google Drive](https://drive.google.com/file/d/1HMTTXWTheWwC-zN2QKnYVv3Cr8a9dBPi/view?usp=drive_link)
 
 This video includes:
