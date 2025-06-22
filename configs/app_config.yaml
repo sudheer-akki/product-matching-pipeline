@@ -46,4 +46,4 @@ dataset:
 api:
   frontend_url: "http://localhost:7860"
   backend_url: "http://localhost:6000"
-  triton_url: "172.81.127.41:19489"
+  triton_url: "172.81.127.41:19489" # replace it with your GPU cloud host url
